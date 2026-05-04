@@ -119,7 +119,7 @@ OPENAI_MODELS = [
 # List of Gemini models
 GEMINI_MODELS = [
     "gemini-2.5-flash",
-    "gemini-2.5-pro"
+    "gemma-4-31b-it"
 ]
 
 # Helper function to clean schema for Gemini
