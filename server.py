@@ -118,7 +118,7 @@ OPENAI_MODELS = [
 
 # List of Gemini models
 GEMINI_MODELS = [
-    "gemini-3.1-flash-lite",
+    "gemini-3.1-flash-lite-preview",
     "gemma-4-31b-it"
 ]
 
