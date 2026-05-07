@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
+import truststore
+truststore.inject_into_ssl()
 import uvicorn
 import logging
 import json
