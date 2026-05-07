@@ -93,12 +93,12 @@ USE_VERTEX_AUTH = os.environ.get("USE_VERTEX_AUTH", "False").lower() == "true"
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL")
 
 # Get preferred provider (default to openai)
-PREFERRED_PROVIDER = os.environ.get("PREFERRED_PROVIDER", "openai").lower()
+PREFERRED_PROVIDER = os.environ.get("PREFERRED_PROVIDER", "google").lower()
 
 # Get model mapping configuration from environment
 # Default to latest OpenAI models if not set
-BIG_MODEL = os.environ.get("BIG_MODEL", "gpt-4.1")
-SMALL_MODEL = os.environ.get("SMALL_MODEL", "gpt-4.1-mini")
+BIG_MODEL = os.environ.get("BIG_MODEL", "gemma-4-31b-it")
+SMALL_MODEL = os.environ.get("SMALL_MODEL", "gemini-3.1-flash-lite-preview")
 
 # List of OpenAI models
 OPENAI_MODELS = [
