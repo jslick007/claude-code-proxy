@@ -79,7 +79,6 @@ app = FastAPI()
 
 # Get API keys from environment
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # Get Vertex AI project and location from environment (if set)
@@ -89,32 +88,13 @@ VERTEX_LOCATION = os.environ.get("VERTEX_LOCATION", "unset")
 # Option to use Gemini API key instead of ADC for Vertex AI
 USE_VERTEX_AUTH = os.environ.get("USE_VERTEX_AUTH", "False").lower() == "true"
 
-# Get OpenAI base URL from environment (if set)
-OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL")
-
-# Get preferred provider (default to openai)
-PREFERRED_PROVIDER = os.environ.get("PREFERRED_PROVIDER", "google").lower()
+# Get preferred provider (default to google)
+PREFERRED_PROVIDER = "google"
 
 # Get model mapping configuration from environment
-# Default to latest OpenAI models if not set
+# Default to latest Gemini models if not set
 BIG_MODEL = os.environ.get("BIG_MODEL", "gemma-4-31b-it")
 SMALL_MODEL = os.environ.get("SMALL_MODEL", "gemini-3.1-flash-lite-preview")
-
-# List of OpenAI models
-OPENAI_MODELS = [
-    "o3-mini",
-    "o1",
-    "o1-mini",
-    "o1-pro",
-    "gpt-4.5-preview",
-    "gpt-4o",
-    "gpt-4o-audio-preview",
-    "chatgpt-4o-latest",
-    "gpt-4o-mini",
-    "gpt-4o-mini-audio-preview",
-    "gpt-4.1",  # Added default big model
-    "gpt-4.1-mini" # Added default small model
-]
 
 # List of Gemini models
 GEMINI_MODELS = [
@@ -220,31 +200,20 @@ class MessagesRequest(BaseModel):
             new_model = f"anthropic/{clean_v}"
             mapped = True
 
-        # Map Haiku to SMALL_MODEL based on provider preference
+        # Map Haiku to SMALL_MODEL
         elif 'haiku' in clean_v.lower():
-            if PREFERRED_PROVIDER == "google" and SMALL_MODEL in GEMINI_MODELS:
-                new_model = f"gemini/{SMALL_MODEL}"
-                mapped = True
-            else:
-                new_model = f"openai/{SMALL_MODEL}"
-                mapped = True
+            new_model = f"gemini/{SMALL_MODEL}"
+            mapped = True
 
-        # Map Sonnet to BIG_MODEL based on provider preference
+        # Map Sonnet to BIG_MODEL
         elif 'sonnet' in clean_v.lower():
-            if PREFERRED_PROVIDER == "google" and BIG_MODEL in GEMINI_MODELS:
-                new_model = f"gemini/{BIG_MODEL}"
-                mapped = True
-            else:
-                new_model = f"openai/{BIG_MODEL}"
-                mapped = True
+            new_model = f"gemini/{BIG_MODEL}"
+            mapped = True
 
         # Add prefixes to non-mapped models if they match known lists
         elif not mapped:
             if clean_v in GEMINI_MODELS and not v.startswith('gemini/'):
                 new_model = f"gemini/{clean_v}"
-                mapped = True # Technically mapped to add prefix
-            elif clean_v in OPENAI_MODELS and not v.startswith('openai/'):
-                new_model = f"openai/{clean_v}"
                 mapped = True # Technically mapped to add prefix
         # --- Mapping Logic --- END ---
 
@@ -252,7 +221,7 @@ class MessagesRequest(BaseModel):
             logger.debug(f"📌 MODEL MAPPING: '{original_model}' ➡️ '{new_model}'")
         else:
              # If no mapping occurred and no prefix exists, log warning or decide default
-             if not v.startswith(('openai/', 'gemini/', 'anthropic/')):
+             if not v.startswith(('gemini/', 'anthropic/')):
                  logger.warning(f"⚠️ No prefix or mapping rule for model: '{original_model}'. Using as is.")
              new_model = v # Ensure we return the original if no rule applied
 
@@ -293,38 +262,27 @@ class TokenCountRequest(BaseModel):
 
         # --- Mapping Logic --- START ---
         mapped = False
-        # Map Haiku to SMALL_MODEL based on provider preference
+        # Map Haiku to SMALL_MODEL
         if 'haiku' in clean_v.lower():
-            if PREFERRED_PROVIDER == "google" and SMALL_MODEL in GEMINI_MODELS:
-                new_model = f"gemini/{SMALL_MODEL}"
-                mapped = True
-            else:
-                new_model = f"openai/{SMALL_MODEL}"
-                mapped = True
+            new_model = f"gemini/{SMALL_MODEL}"
+            mapped = True
 
-        # Map Sonnet to BIG_MODEL based on provider preference
+        # Map Sonnet to BIG_MODEL
         elif 'sonnet' in clean_v.lower():
-            if PREFERRED_PROVIDER == "google" and BIG_MODEL in GEMINI_MODELS:
-                new_model = f"gemini/{BIG_MODEL}"
-                mapped = True
-            else:
-                new_model = f"openai/{BIG_MODEL}"
-                mapped = True
+            new_model = f"gemini/{BIG_MODEL}"
+            mapped = True
 
         # Add prefixes to non-mapped models if they match known lists
         elif not mapped:
             if clean_v in GEMINI_MODELS and not v.startswith('gemini/'):
                 new_model = f"gemini/{clean_v}"
                 mapped = True # Technically mapped to add prefix
-            elif clean_v in OPENAI_MODELS and not v.startswith('openai/'):
-                new_model = f"openai/{clean_v}"
-                mapped = True # Technically mapped to add prefix
         # --- Mapping Logic --- END ---
 
         if mapped:
             logger.debug(f"📌 TOKEN COUNT MAPPING: '{original_model}' ➡️ '{new_model}'")
         else:
-             if not v.startswith(('openai/', 'gemini/', 'anthropic/')):
+             if not v.startswith(('gemini/', 'anthropic/')):
                  logger.warning(f"⚠️ No prefix or mapping rule for token count model: '{original_model}'. Using as is.")
              new_model = v # Ensure we return the original if no rule applied
 
@@ -546,11 +504,11 @@ def convert_anthropic_to_litellm(anthropic_request: MessagesRequest) -> Dict[str
                 
                 messages.append({"role": msg.role, "content": processed_content})
     
-    # Cap max_tokens for OpenAI models to their limit of 16384
+    # Cap max_tokens for Gemini models to their limit of 16384
     max_tokens = anthropic_request.max_tokens
-    if anthropic_request.model.startswith("openai/") or anthropic_request.model.startswith("gemini/"):
+    if anthropic_request.model.startswith("gemini/"):
         max_tokens = min(max_tokens, 16384)
-        logger.debug(f"Capping max_tokens to 16384 for OpenAI/Gemini model (original value: {anthropic_request.max_tokens})")
+        logger.debug(f"Capping max_tokens to 16384 for Gemini model (original value: {anthropic_request.max_tokens})")
     
     # Create LiteLLM request dict
     litellm_request = {
@@ -645,9 +603,9 @@ def convert_litellm_to_anthropic(litellm_response: Union[Dict[str, Any], Any],
         clean_model = original_request.model
         if clean_model.startswith("anthropic/"):
             clean_model = clean_model[len("anthropic/"):]
-        elif clean_model.startswith("openai/"):
-            clean_model = clean_model[len("openai/"):]
-        
+        elif clean_model.startswith("gemini/"):
+            clean_model = clean_model[len("gemini/"):]
+
         # Check if this is a Claude model (which supports content blocks)
         is_claude_model = clean_model.startswith("claude-")
         
@@ -1123,15 +1081,7 @@ async def create_message(
         litellm_request = convert_anthropic_to_litellm(request)
         
         # Determine which API key to use based on the model
-        if request.model.startswith("openai/"):
-            litellm_request["api_key"] = OPENAI_API_KEY
-            # Use custom OpenAI base URL if configured
-            if OPENAI_BASE_URL:
-                litellm_request["api_base"] = OPENAI_BASE_URL
-                logger.debug(f"Using OpenAI API key and custom base URL {OPENAI_BASE_URL} for model: {request.model}")
-            else:
-                logger.debug(f"Using OpenAI API key for model: {request.model}")
-        elif request.model.startswith("gemini/"):
+        if request.model.startswith("gemini/"):
             if USE_VERTEX_AUTH:
                 litellm_request["vertex_project"] = VERTEX_PROJECT
                 litellm_request["vertex_location"] = VERTEX_LOCATION
@@ -1143,148 +1093,7 @@ async def create_message(
         else:
             litellm_request["api_key"] = ANTHROPIC_API_KEY
             logger.debug(f"Using Anthropic API key for model: {request.model}")
-        
-        # For OpenAI models - modify request format to work with limitations
-        if "openai" in litellm_request["model"] and "messages" in litellm_request:
-            logger.debug(f"Processing OpenAI model request: {litellm_request['model']}")
-            
-            # For OpenAI models, we need to convert content blocks to simple strings
-            # and handle other requirements
-            for i, msg in enumerate(litellm_request["messages"]):
-                # Special case - handle message content directly when it's a list of tool_result
-                # This is a specific case we're seeing in the error
-                if "content" in msg and isinstance(msg["content"], list):
-                    is_only_tool_result = True
-                    for block in msg["content"]:
-                        if not isinstance(block, dict) or block.get("type") != "tool_result":
-                            is_only_tool_result = False
-                            break
-                    
-                    if is_only_tool_result and len(msg["content"]) > 0:
-                        logger.warning(f"Found message with only tool_result content - special handling required")
-                        # Extract the content from all tool_result blocks
-                        all_text = ""
-                        for block in msg["content"]:
-                            all_text += "Tool Result:\n"
-                            result_content = block.get("content", [])
-                            
-                            # Handle different formats of content
-                            if isinstance(result_content, list):
-                                for item in result_content:
-                                    if isinstance(item, dict) and item.get("type") == "text":
-                                        all_text += item.get("text", "") + "\n"
-                                    elif isinstance(item, dict):
-                                        # Fall back to string representation of any dict
-                                        try:
-                                            item_text = item.get("text", json.dumps(item))
-                                            all_text += item_text + "\n"
-                                        except:
-                                            all_text += str(item) + "\n"
-                            elif isinstance(result_content, str):
-                                all_text += result_content + "\n"
-                            else:
-                                try:
-                                    all_text += json.dumps(result_content) + "\n"
-                                except:
-                                    all_text += str(result_content) + "\n"
-                        
-                        # Replace the list with extracted text
-                        litellm_request["messages"][i]["content"] = all_text.strip() or "..."
-                        logger.warning(f"Converted tool_result to plain text: {all_text.strip()[:200]}...")
-                        continue  # Skip normal processing for this message
-                
-                # 1. Handle content field - normal case
-                if "content" in msg:
-                    # Check if content is a list (content blocks)
-                    if isinstance(msg["content"], list):
-                        # Convert complex content blocks to simple string
-                        text_content = ""
-                        for block in msg["content"]:
-                            if isinstance(block, dict):
-                                # Handle different content block types
-                                if block.get("type") == "text":
-                                    text_content += block.get("text", "") + "\n"
-                                
-                                # Handle tool_result content blocks - extract nested text
-                                elif block.get("type") == "tool_result":
-                                    tool_id = block.get("tool_use_id", "unknown")
-                                    text_content += f"[Tool Result ID: {tool_id}]\n"
-                                    
-                                    # Extract text from the tool_result content
-                                    result_content = block.get("content", [])
-                                    if isinstance(result_content, list):
-                                        for item in result_content:
-                                            if isinstance(item, dict) and item.get("type") == "text":
-                                                text_content += item.get("text", "") + "\n"
-                                            elif isinstance(item, dict):
-                                                # Handle any dict by trying to extract text or convert to JSON
-                                                if "text" in item:
-                                                    text_content += item.get("text", "") + "\n"
-                                                else:
-                                                    try:
-                                                        text_content += json.dumps(item) + "\n"
-                                                    except:
-                                                        text_content += str(item) + "\n"
-                                    elif isinstance(result_content, dict):
-                                        # Handle dictionary content
-                                        if result_content.get("type") == "text":
-                                            text_content += result_content.get("text", "") + "\n"
-                                        else:
-                                            try:
-                                                text_content += json.dumps(result_content) + "\n"
-                                            except:
-                                                text_content += str(result_content) + "\n"
-                                    elif isinstance(result_content, str):
-                                        text_content += result_content + "\n"
-                                    else:
-                                        try:
-                                            text_content += json.dumps(result_content) + "\n"
-                                        except:
-                                            text_content += str(result_content) + "\n"
-                                
-                                # Handle tool_use content blocks
-                                elif block.get("type") == "tool_use":
-                                    tool_name = block.get("name", "unknown")
-                                    tool_id = block.get("id", "unknown")
-                                    tool_input = json.dumps(block.get("input", {}))
-                                    text_content += f"[Tool: {tool_name} (ID: {tool_id})]\nInput: {tool_input}\n\n"
-                                
-                                # Handle image content blocks
-                                elif block.get("type") == "image":
-                                    text_content += "[Image content - not displayed in text format]\n"
-                        
-                        # Make sure content is never empty for OpenAI models
-                        if not text_content.strip():
-                            text_content = "..."
-                        
-                        litellm_request["messages"][i]["content"] = text_content.strip()
-                    # Also check for None or empty string content
-                    elif msg["content"] is None:
-                        litellm_request["messages"][i]["content"] = "..." # Empty content not allowed
-                
-                # 2. Remove any fields OpenAI doesn't support in messages
-                for key in list(msg.keys()):
-                    if key not in ["role", "content", "name", "tool_call_id", "tool_calls"]:
-                        logger.warning(f"Removing unsupported field from message: {key}")
-                        del msg[key]
-            
-            # 3. Final validation - check for any remaining invalid values and dump full message details
-            for i, msg in enumerate(litellm_request["messages"]):
-                # Log the message format for debugging
-                logger.debug(f"Message {i} format check - role: {msg.get('role')}, content type: {type(msg.get('content'))}")
-                
-                # If content is still a list or None, replace with placeholder
-                if isinstance(msg.get("content"), list):
-                    logger.warning(f"CRITICAL: Message {i} still has list content after processing: {json.dumps(msg.get('content'))}")
-                    # Last resort - stringify the entire content as JSON
-                    litellm_request["messages"][i]["content"] = f"Content as JSON: {json.dumps(msg.get('content'))}"
-                elif msg.get("content") is None:
-                    logger.warning(f"Message {i} has None content - replacing with placeholder")
-                    litellm_request["messages"][i]["content"] = "..." # Fallback placeholder
-        
-        # Only log basic info about the request, not the full details
-        logger.debug(f"Request for model: {litellm_request.get('model')}, stream: {litellm_request.get('stream', False)}")
-        
+
         # Handle streaming mode
         if request.stream:
             # Use LiteLLM for streaming
@@ -1440,11 +1249,7 @@ async def count_tokens(
                 "model": converted_request["model"],
                 "messages": converted_request["messages"],
             }
-            
-            # Add custom base URL for OpenAI models if configured
-            if request.model.startswith("openai/") and OPENAI_BASE_URL:
-                token_counter_args["api_base"] = OPENAI_BASE_URL
-            
+
             # Count tokens
             token_count = token_counter(**token_counter_args)
             
