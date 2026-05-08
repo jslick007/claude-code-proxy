@@ -212,6 +212,11 @@ class MessagesRequest(BaseModel):
             new_model = f"gemini/{BIG_MODEL}"
             mapped = True
 
+        # Map Opus to BIG_MODEL
+        elif 'opus' in clean_v.lower():
+            new_model = f"gemini/{BIG_MODEL}"
+            mapped = True
+
         # Add prefixes to non-mapped models if they match known lists
         elif not mapped:
             if clean_v in GEMINI_MODELS and not v.startswith('gemini/'):
@@ -271,6 +276,11 @@ class TokenCountRequest(BaseModel):
 
         # Map Sonnet to BIG_MODEL
         elif 'sonnet' in clean_v.lower():
+            new_model = f"gemini/{BIG_MODEL}"
+            mapped = True
+
+        # Map Opus to BIG_MODEL
+        elif 'opus' in clean_v.lower():
             new_model = f"gemini/{BIG_MODEL}"
             mapped = True
 
