@@ -10,6 +10,9 @@ import httpx
 import os
 from fastapi.responses import JSONResponse, StreamingResponse
 import litellm
+
+# Bypass SSL verify for corporate proxy (same as list_models.py)
+litellm.ssl_verify = False
 import uuid
 import time
 from dotenv import load_dotenv
