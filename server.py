@@ -4,6 +4,7 @@ truststore.inject_into_ssl()
 import uvicorn
 import logging
 import json
+import asyncio
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Any, Optional, Union, Literal
 import httpx
@@ -1123,13 +1124,28 @@ async def create_message(
                 num_tools,
                 200  # Assuming success at this point
             )
-            # Ensure we use the async version for streaming
-            response_generator = await litellm.acompletion(**litellm_request)
             
-            return StreamingResponse(
-                handle_streaming(response_generator, request),
-                media_type="text/event-stream"
-            )
+            # Retry loop — up to 10 attempts with 5s wait between retries
+            max_retries = 10
+            last_error = None
+            for attempt in range(max_retries):
+                try:
+                    response_generator = await litellm.acompletion(**litellm_request)
+                    return StreamingResponse(
+                        handle_streaming(response_generator, request),
+                        media_type="text/event-stream"
+                    )
+                except Exception as e:
+                    last_error = e
+                    if attempt < max_retries - 1:
+                        logger.warning(f"Retryable error on attempt {attempt+1}/{max_retries}: {type(e).__name__} — retrying in 5s...")
+                        await asyncio.sleep(5)
+                    else:
+                        logger.error(f"All {max_retries} attempts failed. Last error: {type(e).__name__}: {e}")
+                        raise
+            
+            # If all retries exhausted, raise the last error
+            raise last_error
         else:
             # Use LiteLLM for regular completion
             num_tools = len(request.tools) if request.tools else 0
